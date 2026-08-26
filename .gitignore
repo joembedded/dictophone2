@@ -1,0 +1,7 @@
+/logs/*.log
+!/logs/.gitkeep
+
+# Echte Zugangsdaten niemals versionieren. Die Dummy-Datei bleibt als Vorlage erhalten.
+/secret/*.inc.php
+!/secret/_dummy_keys.inc.php
+/.env

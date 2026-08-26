@@ -1,0 +1,255 @@
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+:root {
+    color-scheme: dark;
+    --green: #4dff4d;
+    --green-bright: #8aff8a;
+    --blue: #4db8ff;
+    --purple: #c18cff;
+    --whatsapp: #25d366;
+    --yellow: #ffdd44;
+    --red: #ff4444;
+    --text: #c8ffc8;
+    --background: #0d0d0d;
+}
+
+html,
+body {
+    margin: 0;
+    width: 100%;
+    min-height: 100dvh;
+    height: 100dvh;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+    overflow: hidden;
+    background: var(--background);
+    color: var(--text);
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.container {
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+    min-height: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+button {
+    min-width: 0;
+    padding: 7px 12px;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    font: 600 .85rem/1.4 'Segoe UI', sans-serif;
+    letter-spacing: .05em;
+    transition: background .15s, box-shadow .15s, opacity .15s;
+}
+
+button:hover {
+    box-shadow: 0 0 8px currentColor;
+}
+
+button:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+}
+
+button:disabled {
+    color: #555 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    cursor: wait;
+    opacity: .5;
+}
+
+#record-button { color: var(--green); }
+#record-button:hover { background: #4dff4d22; }
+#record-button.is-recording {
+    color: var(--red);
+    background: #ff444422;
+    box-shadow: 0 0 8px var(--red);
+}
+
+#format-button { color: var(--blue); }
+#format-button:hover { background: #4db8ff22; }
+#speak-button { color: var(--purple); }
+#speak-button:hover { background: #c18cff22; }
+#share-button { color: var(--whatsapp); }
+#share-button:hover { background: #25d36622; }
+#copy-button { color: var(--yellow); }
+#copy-button:hover { background: #ffdd4422; }
+#undo-button { color: var(--text); }
+#undo-button:hover { background: #c8ffc822; }
+#info-button { color: #aaa; }
+#info-button:hover { background: #aaaaaa22; }
+#clear-button { color: var(--red); }
+#clear-button:hover { background: #ff444422; }
+
+.btn-pair {
+    display: flex;
+    gap: 8px;
+    min-width: 0;
+}
+
+.btn-pair button {
+    min-width: 0;
+    flex: 1;
+}
+
+#draft {
+    width: 100%;
+    min-height: 120px;
+    flex: 1;
+    resize: none;
+    overflow: auto;
+    padding: 14px;
+    border: 1px solid #2a6b2a;
+    border-radius: 4px;
+    outline: none;
+    background: #000;
+    color: var(--green);
+    caret-color: var(--green);
+    box-shadow: inset 0 0 20px #00ff0010, 0 0 12px #00ff0018;
+    font: .95rem/1.6 'Courier New', monospace;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+#draft:focus {
+    border-color: var(--green);
+    box-shadow: inset 0 0 20px #00ff0018, 0 0 12px #00ff0028;
+}
+
+#draft.is-listening {
+    border-color: var(--signal-color, var(--green));
+    box-shadow:
+        inset 0 0 calc(10px + var(--signal-spread, 0px)) var(--signal-color, var(--green)),
+        0 0 calc(5px + var(--signal-spread, 0px)) var(--signal-color, var(--green));
+    transition: border-color .08s linear, box-shadow .08s linear;
+}
+
+#draft::placeholder {
+    color: #2a6b2a;
+}
+
+.toast {
+    position: fixed;
+    left: 50%;
+    bottom: max(22px, env(safe-area-inset-bottom));
+    z-index: 20;
+    max-width: min(88vw, 560px);
+    padding: 9px 14px;
+    border: 1px solid var(--green);
+    border-radius: 5px;
+    background: #0d0d0df2;
+    color: var(--text);
+    box-shadow: 0 0 16px #00ff0044;
+    font: 600 .85rem/1.4 'Segoe UI', sans-serif;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, 10px);
+    transition: opacity .16s, transform .16s;
+}
+
+.toast.is-visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+.message-dialog,
+.confirm-dialog {
+    min-width: 260px;
+    max-width: min(90vw, 520px);
+    padding: 1.2rem 1.5rem;
+    border: 1px solid var(--green);
+    border-radius: 6px;
+    background: var(--background);
+    color: var(--text);
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.message-dialog::backdrop,
+.confirm-dialog::backdrop {
+    background: #000b;
+}
+
+.message-dialog h3,
+.confirm-dialog h3 {
+    margin: 0 0 .6rem;
+}
+
+.message-dialog p,
+.confirm-dialog p {
+    margin: 0 0 1rem;
+    white-space: pre-wrap;
+}
+
+.message-dialog button {
+    display: block;
+    margin-left: auto;
+    color: var(--green);
+}
+
+.confirm-dialog {
+    border-color: #ff8a4d;
+    color: #ffd8c2;
+}
+
+.confirm-dialog h3 { color: #ff8a4d; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: .7rem; }
+.confirm-actions button { color: #ffb48a; }
+
+@media (min-width: 560px) {
+    .controls {
+        grid-template-columns: repeat(6, minmax(0, auto));
+    }
+}
+
+@media (max-width: 999px) {
+    button {
+        padding: 12px 8px;
+        font-size: .88rem;
+    }
+
+    #draft {
+        font-size: 1.6rem;
+        font-weight: 600;
+        line-height: 1.5;
+        color: var(--green-bright);
+        border-color: #55aa55;
+        caret-color: var(--green-bright);
+        box-shadow: inset 0 0 22px #00ff0024, 0 0 14px #00ff0033;
+    }
+
+    #draft::placeholder { color: #3d7f3d; }
+    .toast { bottom: max(16px, env(safe-area-inset-bottom)); }
+}
+
+@media (max-width: 390px) {
+    body { padding: 7px; }
+    .controls { gap: 6px; }
+    .btn-pair { gap: 6px; }
+    button { padding-inline: 5px; font-size: .8rem; letter-spacing: .025em; }
+}

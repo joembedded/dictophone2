@@ -1,0 +1,19 @@
+{
+  "name": "Nachrichten-Diktat",
+  "short_name": "Diktat",
+  "description": "Nachrichten diktieren, mit KI aufbereiten, kopieren, teilen und vorlesen.",
+  "lang": "de-DE",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0d0d0d",
+  "theme_color": "#0d0d0d",
+  "icons": [
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
