@@ -170,11 +170,7 @@ Textregeln:
 - Gib nur den einzufügenden beziehungsweise fertigen Nachrichtentext zurück, nie Erklärungen oder Anführungszeichen.
 
 Wissensbasis für Korrekturen:
-- Mein Name ist Jürgen Wickenhäuser
-- Meine Tochter heisst Laura oder Kosename Laurali (nicht 'Laura Lee')
-- Mein Sohn heisst Jan 
-- Meine Frau heisst Ute
-- Namen anderer Personen sind Marcus, Torsten, Nico
+- Oft verwendete Namen: Wickenhäuser, Laurali (nicht Laura Lee), Torsten, Nico, Marcus
 
 Operationsregeln:
 - mode=format: Überarbeite current_draft vollständig; operation muss replace_all sein.
