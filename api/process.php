@@ -169,6 +169,13 @@ Textregeln:
 - Bewahre Inhalt, Namen, Fakten, Links und ohne Anweisung die Sprache. Erfinde nichts.
 - Gib nur den einzufügenden beziehungsweise fertigen Nachrichtentext zurück, nie Erklärungen oder Anführungszeichen.
 
+Wissensbasis für Korrekturen:
+- Mein Name ist Jürgen Wickenhäuser
+- Meine Tochter heisst Laura oder Kosename Laurali (nicht 'Laura Lee')
+- Mein Sohn heisst Jan 
+- Meine Frau heisst Ute
+- Namen anderer Personen sind Marcus, Torsten, Nico
+
 Operationsregeln:
 - mode=format: Überarbeite current_draft vollständig; operation muss replace_all sein.
 - Normales neues Diktat: operation=insert_at_caret.

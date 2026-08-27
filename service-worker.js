@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nachrichten-diktat-v5';
+const CACHE_NAME = 'nachrichten-diktat-v8';
 const APP_SHELL = ['./', 'index.html', 'assets/app.css', 'assets/app.js', 'assets/vad.js', 'assets/icon.svg', 'manifest.webmanifest'];
 
 self.addEventListener('install', event => {

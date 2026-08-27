@@ -27,7 +27,7 @@ const confirmClear = document.querySelector('#confirm-clear');
 
 const MAX_RECORDING_MS = 60_000;
 const MAX_HISTORY = 80;
-const APP_VERSION = '2.2 (26.08.2026)';
+const APP_VERSION = '2.5 (27.08.2026)';
 const history = [];
 
 let recorder = null;
@@ -105,10 +105,15 @@ function restoreState(state) {
 
 function syncControls() {
     const recording = recorder?.state === 'recording';
+    const speaking = !player.paused && !player.ended;
     recordButton.disabled = busy;
-    [formatButton, speakButton, undoButton, copyButton, shareButton, clearButton].forEach(button => {
+    [formatButton, undoButton, copyButton, shareButton, clearButton].forEach(button => {
         button.disabled = busy || recording;
     });
+    speakButton.disabled = (busy && !speaking) || recording;
+    speakButton.textContent = speaking ? '\u23F9\uFE0E' : '\u25B6';
+    speakButton.title = speaking ? 'Vorlesen stoppen' : 'Entwurf vorlesen';
+    speakButton.setAttribute('aria-label', speakButton.title);
 }
 
 function setBusy(next, message = 'Bitte warten …') {
@@ -315,7 +320,9 @@ function finishRecordingUi() {
     clearTimeout(recordingTimer);
     recordingTimer = null;
     recordButton.classList.remove('is-recording');
-    recordLabel.textContent = 'Aufnehmen';
+    recordLabel.textContent = '\u25CF';
+    recordButton.title = 'Diktat aufnehmen';
+    recordButton.setAttribute('aria-label', recordButton.title);
     syncControls();
 }
 
@@ -356,7 +363,9 @@ async function startRecording() {
         recorder.start(250);
         monitorVoiceActivity();
         recordButton.classList.add('is-recording');
-        recordLabel.textContent = 'Stoppen';
+        recordLabel.textContent = '\u25A0';
+        recordButton.title = 'Aufnahme stoppen';
+        recordButton.setAttribute('aria-label', recordButton.title);
         setStatus('Aufnahme läuft');
         syncControls();
         recordingTimer = setTimeout(() => stopRecording('Maximale Aufnahmedauer erreicht', 'maximum'), MAX_RECORDING_MS);
@@ -408,15 +417,16 @@ async function formatDraft() {
 }
 
 async function speakDraft() {
-    const text = draft.value.trim();
-    if (!text) {
-        setStatus('Kein Text zum Vorlesen.');
-        return;
-    }
     if (!player.paused) {
         player.pause();
         player.currentTime = 0;
+        syncControls();
         setStatus('Vorlesen gestoppt');
+        return;
+    }
+    const text = draft.value.trim();
+    if (!text) {
+        setStatus('Kein Text zum Vorlesen.');
         return;
     }
 
@@ -435,9 +445,12 @@ async function speakDraft() {
         player.onended = () => {
             URL.revokeObjectURL(currentAudioUrl);
             currentAudioUrl = null;
+            syncControls();
             setStatus('');
         };
         await player.play();
+        syncControls();
+        if (player.paused) return;
         setStatus('Wird vorgelesen');
     } catch (error) {
         setStatus('Vorlesen fehlgeschlagen');
@@ -491,6 +504,8 @@ async function shareDraft() {
 recordButton.addEventListener('click', () => recorder?.state === 'recording' ? stopRecording() : startRecording());
 formatButton.addEventListener('click', formatDraft);
 speakButton.addEventListener('click', speakDraft);
+player.addEventListener('play', syncControls);
+player.addEventListener('pause', syncControls);
 copyButton.addEventListener('click', copyDraft);
 shareButton.addEventListener('click', shareDraft);
 undoButton.addEventListener('click', () => {

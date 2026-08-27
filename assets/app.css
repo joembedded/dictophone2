@@ -83,6 +83,14 @@ button:disabled {
     opacity: .5;
 }
 
+.icon-button {
+    min-height: 38px;
+    font-family: 'Segoe UI Symbol', 'Segoe UI', sans-serif;
+    font-size: 1.25rem;
+    line-height: 1;
+    letter-spacing: 0;
+}
+
 #record-button { color: var(--green); }
 #record-button:hover { background: #4dff4d22; }
 #record-button.is-recording {
