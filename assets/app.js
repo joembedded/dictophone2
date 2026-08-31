@@ -24,10 +24,12 @@ const messageClose = document.querySelector('#message-close');
 const confirmDialog = document.querySelector('#confirm-dialog');
 const confirmCancel = document.querySelector('#confirm-cancel');
 const confirmClear = document.querySelector('#confirm-clear');
+const recordingStartSound = new Audio(new URL('./soundfx/ping880.opus', import.meta.url));
+const recordingEndSound = new Audio(new URL('./soundfx/msg_pop.opus', import.meta.url));
 
 const MAX_RECORDING_MS = 60_000;
 const MAX_HISTORY = 80;
-const APP_VERSION = '2.5 (27.08.2026)';
+const APP_VERSION = '2.6 (31.08.2026)';
 const history = [];
 
 let recorder = null;
@@ -45,6 +47,26 @@ let currentAudioUrl = null;
 let lastTypingSnapshotAt = 0;
 let clientLogInFlight = false;
 let toastTimer = null;
+
+function playCue(audio) {
+    audio.currentTime = 0;
+    return new Promise(resolve => {
+        let timeoutId;
+        const finish = () => {
+            clearTimeout(timeoutId);
+            audio.removeEventListener('ended', finish);
+            audio.removeEventListener('error', finish);
+            resolve();
+        };
+        audio.addEventListener('ended', finish);
+        audio.addEventListener('error', finish);
+        timeoutId = setTimeout(() => {
+            audio.pause();
+            finish();
+        }, 1500);
+        audio.play().catch(finish);
+    });
+}
 
 class ApiError extends Error {
     constructor(message, httpStatus = 0, diagnosticId = '') {
@@ -67,13 +89,17 @@ function setStatus(message, duration = 1800) {
     }
 }
 
-function showMessage(title, message) {
+function showMessage(title, message, { allowHtml = false } = {}) {
     messageTitle.textContent = title;
-    messageText.textContent = message;
+    if (allowHtml) {
+        messageText.innerHTML = message;
+    } else {
+        messageText.textContent = message;
+    }
     if (typeof messageDialog.showModal === 'function' && !messageDialog.open) {
         messageDialog.showModal();
     } else {
-        window.alert(`${title}\n\n${message}`);
+        window.alert(`${title}\n\n${messageText.textContent}`);
     }
 }
 
@@ -245,11 +271,16 @@ async function processAudio(blob, selectionStart, selectionEnd) {
     data.append('mode', 'dictation');
     data.append('audio', blob, `diktat.${extension}`);
     appendDraftContext(data, selectionStart, selectionEnd);
-    setBusy(true, 'Diktat wird erkannt und aufbereitet …');
+    setBusy(true, 'Diktat wird erkannt und verarbeitet …');
     try {
         const result = await apiRequest('api/process.php', data);
         applyOperation(result, selectionStart, selectionEnd);
-        setStatus(result.instructionApplied ? 'Anweisung umgesetzt' : 'Diktat eingefügt');
+        console.log('Diktat verarbeitet:', result);
+        const intentSummary = String(result.intentSummary || '').trim();
+        const completionStatus = intentSummary
+            ? `Diktat erkannt und verarbeitet\nFormatierung: ${intentSummary}`
+            : 'Diktat erkannt und verarbeitet';
+        setStatus(completionStatus);
     } catch (error) {
         setStatus('Diktat fehlgeschlagen');
         showMessage('Diktat konnte nicht verarbeitet werden', error.message + diagnosticSuffix(error));
@@ -360,6 +391,7 @@ async function startRecording() {
             await processAudio(new Blob(audioParts, { type: actualMime }), selectionStart, selectionEnd);
         };
         await startVoiceActivityMonitoring(stream);
+        await playCue(recordingStartSound);
         recorder.start(250);
         monitorVoiceActivity();
         recordButton.classList.add('is-recording');
@@ -387,6 +419,7 @@ function stopRecording(statusMessage = 'Aufnahme beendet', reason = 'manual') {
     if (recorder?.state !== 'recording') return;
     setStatus(reason === 'silence' ? 'Sprechpause erkannt – Aufnahme beendet' : statusMessage);
     recorder.stop();
+    void playCue(recordingEndSound);
 }
 
 async function formatDraft() {
@@ -405,6 +438,7 @@ async function formatDraft() {
     setBusy(true, 'Entwurf wird aufbereitet …');
     try {
         const result = await apiRequest('api/process.php', data);
+        console.log('Entwurf aufbereitet:', result);
         applyOperation(result, selectionStart, selectionEnd);
         setStatus('Entwurf aufbereitet');
     } catch (error) {
@@ -523,7 +557,9 @@ Aufnehmen transkribiert Sprache über die OpenAI API und stoppt nach erkannter S
 
 Datenschutz: Audio und Nachrichtentext werden zur Verarbeitung an OpenAI übertragen. Das lokale Diagnose-Log speichert keine Audio-, Diktat- oder Nachrichteninhalte und keine API-Schlüssel.
 
-Version: ${APP_VERSION}`);
+(C) JoEmbedded<br>OpenSource: <a href="https://github.com/joembedded/dictophone2" target="_blank" rel="noopener noreferrer">https://github.com/joembedded/dictophone2</a>
+
+Version: ${APP_VERSION}`, { allowHtml: true });
 });
 confirmCancel.addEventListener('click', () => {
     confirmDialog.close();
@@ -559,7 +595,12 @@ window.addEventListener('error', event => {
 window.addEventListener('unhandledrejection', event => {
     reportClientError('unhandled_rejection', event.reason);
 });
-window.addEventListener('beforeunload', () => {
+window.addEventListener('beforeunload', event => {
+    if (draft.value.trim()) {
+        event.preventDefault();
+        event.returnValue = true;
+        return;
+    }
     stopStream();
     if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
 });

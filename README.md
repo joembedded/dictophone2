@@ -9,7 +9,8 @@ Portable PHP-Web-App zum Diktieren, KI-Aufbereiten, Vorlesen, Kopieren und Teile
 - Neonrahmen am Textfeld, dessen Leuchtbreite den geglätteten Mikrofonpegel visualisiert
 - serverseitige Transkription mit `gpt-4o-mini-transcribe`
 - Aufbereitung über die Responses API mit `gpt-5.6-terra`, `reasoning.effort: low` und Structured Outputs
-- Umsetzung gesprochener Anweisungen zu Sprache, Ton, Duzen/Siezen, Kürze, Emojis, Einfügen und Anhängen
+- Umsetzung eingebetteter gesprochener Anweisungen zu Sprache, Ton, Duzen/Siezen, Kürze, Emojis, Einfügen und Anhängen
+- Erkennung reiner Formatierungsanweisungen, die auf den vorhandenen Entwurf angewendet und nicht als neuer Text angehängt werden
 - schnelle Tastaturbearbeitung, Rückgängig-Verlauf, Löschen, Kopieren und Web Share/WhatsApp
 - Vorlesen mit `gpt-4o-mini-tts`
 - große Schrift bei Viewports unter 1000 Pixel

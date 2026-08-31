@@ -175,6 +175,7 @@ button:disabled {
     box-shadow: 0 0 16px #00ff0044;
     font: 600 .85rem/1.4 'Segoe UI', sans-serif;
     text-align: center;
+    white-space: pre-line;
     pointer-events: none;
     opacity: 0;
     transform: translate(-50%, 10px);

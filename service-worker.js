@@ -1,5 +1,15 @@
-const CACHE_NAME = 'nachrichten-diktat-v8';
-const APP_SHELL = ['./', 'index.html', 'assets/app.css', 'assets/app.js', 'assets/vad.js', 'assets/icon.svg', 'manifest.webmanifest'];
+const CACHE_NAME = 'nachrichten-diktat-v13';
+const APP_SHELL = [
+    './',
+    'index.html',
+    'assets/app.css',
+    'assets/app.js',
+    'assets/vad.js',
+    'assets/icon.svg',
+    'assets/soundfx/ping880.opus',
+    'assets/soundfx/msg_pop.opus',
+    'manifest.webmanifest',
+];
 
 self.addEventListener('install', event => {
     event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));

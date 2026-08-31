@@ -130,8 +130,13 @@ function operationSchema(): array
             ],
             'text' => ['type' => 'string'],
             'instruction_applied' => ['type' => 'boolean'],
+            'input_type' => [
+                'type' => 'string',
+                'enum' => ['dictation', 'format_instruction'],
+            ],
+            'intent_summary' => ['type' => 'string'],
         ],
-        'required' => ['operation', 'text', 'instruction_applied'],
+        'required' => ['operation', 'text', 'instruction_applied', 'input_type', 'intent_summary'],
         'additionalProperties' => false,
     ];
 }
@@ -169,8 +174,15 @@ Textregeln:
 - Bewahre Inhalt, Namen, Fakten, Links und ohne Anweisung die Sprache. Erfinde nichts.
 - Gib nur den einzufügenden beziehungsweise fertigen Nachrichtentext zurück, nie Erklärungen oder Anführungszeichen.
 
+Klassifikation:
+- input_type=format_instruction gilt nur, wenn das gesamte neue Diktat eine eigenständige Anweisung zur Bearbeitung des bereits vorhandenen current_draft ist und keinen neuen Nachrichtentext enthält. Beispiele: „Anweisung zur Formatierung: Formuliere die diktierte Mail in Deutsch und Englisch“, „Übersetze den bestehenden Text ins Englische“ oder „Mach die Nachricht höflicher“.
+- Eine in neuen Nachrichtentext eingebettete Anweisung ist weiterhin input_type=dictation. Beispiel: „Hallo Emoji für Herz Laura“ ergibt einen neuen Nachrichtentext wie „Hallo ❤️ Laura“ und ist keine reine Formatierungsanweisung.
+- mode=format ist immer input_type=dictation; die Klassifikation format_instruction betrifft ausschließlich eigenständige Anweisungen aus mode=dictation.
+- Bei input_type=format_instruction: Wende die Anweisung auf current_draft an, verwende operation=replace_all, setze instruction_applied=true und liefere in text den vollständigen bearbeiteten Entwurf. Hänge die Anweisung niemals an den Entwurf an.
+- intent_summary enthält bei input_type=format_instruction eine kurze, konkrete deutsche Zusammenfassung der erkannten Absicht ohne Präfix „Formatierung:“, zum Beispiel „Mail auf Deutsch und Englisch formulieren“. Bei input_type=dictation ist intent_summary ein leerer String.
+
 Wissensbasis für Korrekturen:
-- Oft verwendete Namen: Wickenhäuser, Laurali (nicht Laura Lee), Torsten, Nico, Marcus
+- Oft verwendete Namen: Wickenhäuser, Laurali (nicht Laura Lee), Constantin, Torsten, Nico, Marcus
 
 Operationsregeln:
 - mode=format: Überarbeite current_draft vollständig; operation muss replace_all sein.
@@ -230,23 +242,38 @@ if (!is_array($operation)) {
 $allowedOperations = ['insert_at_caret', 'replace_selection', 'prepend', 'append', 'replace_all'];
 $operationName = (string)($operation['operation'] ?? '');
 $text = trim((string)($operation['text'] ?? ''));
-if (!in_array($operationName, $allowedOperations, true) || $text === '') {
+$inputType = (string)($operation['input_type'] ?? '');
+$intentSummary = trim((string)($operation['intent_summary'] ?? ''));
+$allowedInputTypes = ['dictation', 'format_instruction'];
+if (
+    !in_array($operationName, $allowedOperations, true)
+    || !in_array($inputType, $allowedInputTypes, true)
+    || $text === ''
+    || ($inputType === 'format_instruction' && $intentSummary === '')
+) {
     appLog('error', 'formatting_empty_or_invalid_operation', [
         'model' => FORMAT_MODEL,
         'response_id' => (string)($result['id'] ?? ''),
         'operation' => $operationName,
+        'input_type' => $inputType,
         'output_chars' => mb_strlen($text),
     ]);
     jsonResponse(['success' => false, 'error' => 'Die KI hat keinen verwendbaren Text geliefert.'], 502);
 }
 if ($mode === 'format') {
     $operationName = 'replace_all';
+    $inputType = 'dictation';
+    $intentSummary = '';
+} elseif ($inputType === 'format_instruction') {
+    $operationName = 'replace_all';
 }
+$intentSummary = mb_substr($intentSummary, 0, 160);
 
 appLog('info', 'draft_operation_ready', [
     'mode' => $mode,
     'model' => FORMAT_MODEL,
     'operation' => $operationName,
+    'input_type' => $inputType,
     'instruction_applied' => (bool)($operation['instruction_applied'] ?? false),
     'output_chars' => mb_strlen($text),
 ]);
@@ -256,5 +283,7 @@ jsonResponse([
     'text' => $text,
     'operation' => $operationName,
     'instructionApplied' => (bool)($operation['instruction_applied'] ?? false),
+    'inputType' => $inputType,
+    'intentSummary' => $intentSummary,
     'diagnosticId' => appRequestId(),
 ]);
