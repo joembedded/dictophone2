@@ -29,7 +29,7 @@ const recordingEndSound = new Audio(new URL('./soundfx/msg_pop.opus', import.met
 
 const MAX_RECORDING_MS = 60_000;
 const MAX_HISTORY = 80;
-const APP_VERSION = '2.6 (31.08.2026)';
+const APP_VERSION = '2.7 (03.09.2026)';
 const history = [];
 
 let recorder = null;
