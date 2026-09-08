@@ -48,6 +48,25 @@
         </div>
     </dialog>
 
+    <dialog id="record-dialog" class="record-dialog" aria-labelledby="record-title" aria-describedby="capture-status">
+        <div class="record-top"><span>Mikrofon</span><span id="capture-badge" class="capture-badge">STARTET</span></div>
+        <h2 id="record-title">Sprechen zum Starten</h2>
+        <div id="capture-time" class="capture-clock" aria-label="Aufnahmedauer">00:00.0</div>
+        <p id="capture-status" role="status" aria-live="polite">Mikrofon freigeben …</p>
+        <label class="threshold-label" for="threshold">Sprachschwelle <output id="threshold-value">0,052 RMS</output></label>
+        <input id="threshold" type="range" min="0.005" max="0.15" step="0.001" value="0.052">
+        <div class="record-actions">
+            <button id="record-cancel" type="button" autofocus>Abbruch</button>
+            <div class="meter-area">
+                <div class="meter-label"><span>Mikrofonpegel</span><span id="level-value">−∞ dBFS</span></div>
+                <div id="level-meter" class="level-meter" role="meter" aria-label="Mikrofonpegel" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                    <div id="level-fill"></div><span id="threshold-marker"></span>
+                </div>
+            </div>
+            <button id="record-accept" type="button" disabled>OK</button>
+        </div>
+    </dialog>
+
     <audio id="player"></audio>
 </body>
 </html>

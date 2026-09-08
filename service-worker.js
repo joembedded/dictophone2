@@ -1,13 +1,13 @@
-const CACHE_NAME = 'nachrichten-diktat-v13';
+const CACHE_NAME = 'nachrichten-diktat-v17';
 const APP_SHELL = [
     './',
     'index.html',
     'assets/app.css',
     'assets/app.js',
-    'assets/vad.js',
+    'assets/recording.js',
+    'assets/audio-core.js',
+    'assets/capture-worklet.js',
     'assets/icon.svg',
-    'assets/soundfx/ping880.opus',
-    'assets/soundfx/msg_pop.opus',
     'manifest.webmanifest',
 ];
 

@@ -2,11 +2,16 @@
 
 Portable PHP-Web-App zum Diktieren, KI-Aufbereiten, Vorlesen, Kopieren und Teilen von Nachrichten.
 
+Version **2.8.1 (08.09.2026)**
+
 ## Funktionsumfang
 
-- Aufnahme mit `MediaRecorder`, mehreren Browser-Audioformaten und automatischem Stopp nach 60 Sekunden
-- automatische Beendigung etwa zwei Sekunden nach einer auf Sprache folgenden Sprechpause
-- Neonrahmen am Textfeld, dessen Leuchtbreite den geglätteten Mikrofonpegel visualisiert
+- Aufnahmedialog aus LKI-STT, angepasst an das schwarze Dic2-Design mit Neonfarben
+- AudioWorklet-Aufnahme als WAV (PCM, mono, 16 kHz, 16 Bit) mit 400 ms Audiovorlauf und einstellbarer Sprachschwelle
+- Mikrofonpegel mit weich abfallendem Blooming-Rand zwischen „Abbruch“ und „OK“
+- ausschließlich „OK“ beendet und transkribiert; „Abbruch“ oder Escape verwirft ohne Upload, auch während der Mikrofonfreigabe
+- keine Start-/Stop-Pings und kein automatischer Stopp bei Sprechpausen
+- nach 60 Sekunden wird das Mikrofon freigegeben; erst „OK“ sendet die gepufferte Aufnahme
 - serverseitige Transkription mit `gpt-4o-mini-transcribe`
 - Aufbereitung über die Responses API mit `gpt-5.6-terra`, `reasoning.effort: low` und Structured Outputs
 - Umsetzung eingebetteter gesprochener Anweisungen zu Sprache, Ton, Duzen/Siezen, Kürze, Emojis, Einfügen und Anhängen
@@ -16,7 +21,7 @@ Portable PHP-Web-App zum Diktieren, KI-Aufbereiten, Vorlesen, Kopieren und Teile
 - große Schrift bei Viewports unter 1000 Pixel
 - installierbare Web-App mit Manifest und App-Shell-Service-Worker
 
-Die Spracherkennung im Browser lässt sich in `assets/vad.js` über Konstanten anpassen. Relevant sind vor allem `SPEECH_RMS_THRESHOLD` für den Sprachpegel und `SILENCE_STOP_MS` für die erlaubte Sprechpause in Millisekunden. Anfangsstille beendet die Aufnahme nicht; der Pausen-Timer startet erst nach erkannter Sprache.
+Die Sprachschwelle kann im Aufnahmedialog live eingestellt werden und bleibt lokal im Browser gespeichert. Vorgabe: 0,052 RMS. Nach 300 ms Einschwingzeit startet ein Signal oberhalb der Schwelle die Aufnahme; bis dahin ist „OK“ deaktiviert. `assets/audio-core.js` enthält Pegelerkennung, Audiovorlauf und WAV-Kodierung; `assets/capture-worklet.js` verarbeitet das Mikrofonsignal. Abbruch, Fehler und Verlassen der Seite geben Mikrofon und AudioContext frei. Die maximale WAV-Datei ist mit 1.920.044 Bytes kleiner als das serverseitige 10-MiB-Limit.
 
 ## OpenAI-Key
 
@@ -38,7 +43,7 @@ Der gesamte Projektordner kann an eine beliebige Stelle innerhalb des Webroots k
 - `index.html`, `manifest.webmanifest`, `service-worker.js` und `.htaccess`
 - die nicht versionierte Datei `secret/keys.inc.php`
 
-Benötigt werden PHP mit cURL und mbstring, Schreibrechte auf `logs/` sowie HTTPS für Mikrofon-, Zwischenablage- und PWA-Funktionen. `localhost` genügt für die lokale Entwicklung.
+Benötigt werden ein Browser mit AudioWorklet-Unterstützung, PHP mit cURL und mbstring, Schreibrechte auf `logs/` sowie HTTPS für Mikrofon-, Zwischenablage- und PWA-Funktionen. `localhost` genügt für die lokale Entwicklung.
 
 ## Externe Netzwerkziele
 

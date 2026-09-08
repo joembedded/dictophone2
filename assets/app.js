@@ -1,13 +1,7 @@
-import {
-    SPEECH_RMS_THRESHOLD,
-    computeRms,
-    createVadState,
-    updateVadState,
-} from './vad.js';
+import { createRecordingController } from './recording.js';
 
 const draft = document.querySelector('#draft');
 const recordButton = document.querySelector('#record-button');
-const recordLabel = document.querySelector('#record-label');
 const formatButton = document.querySelector('#format-button');
 const speakButton = document.querySelector('#speak-button');
 const undoButton = document.querySelector('#undo-button');
@@ -24,49 +18,31 @@ const messageClose = document.querySelector('#message-close');
 const confirmDialog = document.querySelector('#confirm-dialog');
 const confirmCancel = document.querySelector('#confirm-cancel');
 const confirmClear = document.querySelector('#confirm-clear');
-const recordingStartSound = new Audio(new URL('./soundfx/ping880.opus', import.meta.url));
-const recordingEndSound = new Audio(new URL('./soundfx/msg_pop.opus', import.meta.url));
-
-const MAX_RECORDING_MS = 60_000;
 const MAX_HISTORY = 80;
-const APP_VERSION = '2.7 (03.09.2026)';
+const APP_VERSION = '2.8.1 (08.09.2026)';
 const history = [];
 
-let recorder = null;
-let stream = null;
-let audioParts = [];
-let recordingTimer = null;
-let audioContext = null;
-let analyser = null;
-let analyserData = null;
-let vadFrame = null;
-let vadState = null;
-let smoothedRms = 0;
 let busy = false;
 let currentAudioUrl = null;
 let lastTypingSnapshotAt = 0;
 let clientLogInFlight = false;
 let toastTimer = null;
 
-function playCue(audio) {
-    audio.currentTime = 0;
-    return new Promise(resolve => {
-        let timeoutId;
-        const finish = () => {
-            clearTimeout(timeoutId);
-            audio.removeEventListener('ended', finish);
-            audio.removeEventListener('error', finish);
-            resolve();
+const recording = createRecordingController({
+    onAccept: (blob, { selectionStart, selectionEnd }) => { void processAudio(blob, selectionStart, selectionEnd); },
+    onCancel: () => setStatus('Aufnahme verworfen'),
+    onStateChange: syncControls,
+    onError: error => {
+        setStatus('Aufnahme fehlgeschlagen');
+        void reportClientError('recording_error', error);
+        const messages = {
+            NotAllowedError: 'Der Mikrofonzugriff wurde abgelehnt. Bitte in den Browser-Einstellungen erlauben.',
+            NotFoundError: 'Es wurde kein Mikrofon gefunden.',
+            NotReadableError: 'Das Mikrofon wird bereits verwendet oder kann nicht gelesen werden.',
         };
-        audio.addEventListener('ended', finish);
-        audio.addEventListener('error', finish);
-        timeoutId = setTimeout(() => {
-            audio.pause();
-            finish();
-        }, 1500);
-        audio.play().catch(finish);
-    });
-}
+        showMessage('Aufnahme fehlgeschlagen', messages[error.name] || error.message);
+    },
+});
 
 class ApiError extends Error {
     constructor(message, httpStatus = 0, diagnosticId = '') {
@@ -130,13 +106,13 @@ function restoreState(state) {
 }
 
 function syncControls() {
-    const recording = recorder?.state === 'recording';
+    const capturing = recording.isActive;
     const speaking = !player.paused && !player.ended;
-    recordButton.disabled = busy;
+    recordButton.disabled = busy || capturing;
     [formatButton, undoButton, copyButton, shareButton, clearButton].forEach(button => {
-        button.disabled = busy || recording;
+        button.disabled = busy || capturing;
     });
-    speakButton.disabled = (busy && !speaking) || recording;
+    speakButton.disabled = (busy && !speaking) || capturing;
     speakButton.textContent = speaking ? '\u23F9\uFE0E' : '\u25B6';
     speakButton.title = speaking ? 'Vorlesen stoppen' : 'Entwurf vorlesen';
     speakButton.setAttribute('aria-label', speakButton.title);
@@ -266,7 +242,7 @@ async function processAudio(blob, selectionStart, selectionEnd) {
     }
 
     const mime = blob.type.split(';', 1)[0].toLowerCase();
-    const extension = { 'audio/ogg': 'ogg', 'audio/mp4': 'mp4', 'audio/mpeg': 'mp3' }[mime] || 'webm';
+    const extension = { 'audio/wav': 'wav', 'audio/ogg': 'ogg', 'audio/mp4': 'mp4', 'audio/mpeg': 'mp3' }[mime] || 'webm';
     const data = new FormData();
     data.append('mode', 'dictation');
     data.append('audio', blob, `diktat.${extension}`);
@@ -289,137 +265,14 @@ async function processAudio(blob, selectionStart, selectionEnd) {
     }
 }
 
-function stopStream() {
-    stopVoiceActivityMonitoring();
-    stream?.getTracks().forEach(track => track.stop());
-    stream = null;
-}
-
-function visualizeInputLevel(rms) {
-    smoothedRms *= 0.9;
-    if (rms > smoothedRms) smoothedRms = rms;
-    const bloom = Math.max(0, Math.min(18, ((smoothedRms / SPEECH_RMS_THRESHOLD) - 0.5) * 5));
-    const activeSpeech = smoothedRms >= SPEECH_RMS_THRESHOLD;
-    draft.style.setProperty('--signal-spread', `${bloom.toFixed(1)}px`);
-    draft.style.setProperty('--signal-color', activeSpeech ? '#4dff4d' : '#ffdd44');
-    return smoothedRms;
-}
-
-function monitorVoiceActivity() {
-    if (!analyser || !analyserData || recorder?.state !== 'recording') return;
-    vadFrame = requestAnimationFrame(monitorVoiceActivity);
-    analyser.getByteTimeDomainData(analyserData);
-    const rms = computeRms(analyserData);
-    const monitoredRms = visualizeInputLevel(rms);
-    const transition = updateVadState(vadState, monitoredRms, performance.now());
-    if (transition.speechStarted) setStatus('Sprache erkannt');
-    if (transition.shouldStop) stopRecording('Sprechpause erkannt', 'silence');
-}
-
-async function startVoiceActivityMonitoring(audioStream) {
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) throw new Error('AudioContext wird von diesem Browser nicht unterstützt.');
-    audioContext = new AudioContextClass();
-    if (audioContext.state !== 'running') await audioContext.resume();
-    const source = audioContext.createMediaStreamSource(audioStream);
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = 2048;
-    analyserData = new Uint8Array(analyser.fftSize);
-    source.connect(analyser);
-    vadState = createVadState(performance.now());
-    smoothedRms = 0;
-    draft.classList.add('is-listening');
-}
-
-function stopVoiceActivityMonitoring() {
-    if (vadFrame !== null) cancelAnimationFrame(vadFrame);
-    vadFrame = null;
-    analyser = null;
-    analyserData = null;
-    vadState = null;
-    smoothedRms = 0;
-    draft.classList.remove('is-listening');
-    draft.style.removeProperty('--signal-spread');
-    draft.style.removeProperty('--signal-color');
-    if (audioContext) {
-        void audioContext.close().catch(() => {});
-        audioContext = null;
-    }
-}
-
-function finishRecordingUi() {
-    clearTimeout(recordingTimer);
-    recordingTimer = null;
-    recordButton.classList.remove('is-recording');
-    recordLabel.textContent = '\u25CF';
-    recordButton.title = 'Diktat aufnehmen';
-    recordButton.setAttribute('aria-label', recordButton.title);
-    syncControls();
-}
-
-async function startRecording() {
-    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia || typeof window.MediaRecorder !== 'function') {
-        showMessage('Aufnahme nicht möglich', 'Audioaufnahme benötigt localhost oder HTTPS sowie einen Browser mit MediaRecorder-Unterstützung.');
-        return;
-    }
-
-    const selectionStart = draft.selectionStart;
-    const selectionEnd = draft.selectionEnd;
-    setDraftKeyboard('none');
-    try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1 } });
-        const mimeType = [
-            'audio/webm;codecs=opus',
-            'audio/webm',
-            'audio/ogg;codecs=opus',
-            'audio/mp4;codecs=mp4a.40.2',
-            'audio/mp4',
-        ].find(type => MediaRecorder.isTypeSupported(type));
-
-        recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-        audioParts = [];
-        recorder.ondataavailable = event => { if (event.data.size) audioParts.push(event.data); };
-        recorder.onerror = async event => {
-            const error = event.error || new Error('Unbekannter Aufnahmefehler.');
-            await reportClientError('recording_error', error);
-            showMessage('Aufnahme fehlgeschlagen', error.message);
-        };
-        recorder.onstop = async () => {
-            const actualMime = recorder?.mimeType || mimeType || 'audio/webm';
-            stopStream();
-            finishRecordingUi();
-            await processAudio(new Blob(audioParts, { type: actualMime }), selectionStart, selectionEnd);
-        };
-        await startVoiceActivityMonitoring(stream);
-        await playCue(recordingStartSound);
-        recorder.start(250);
-        monitorVoiceActivity();
-        recordButton.classList.add('is-recording');
-        recordLabel.textContent = '\u25A0';
-        recordButton.title = 'Aufnahme stoppen';
-        recordButton.setAttribute('aria-label', recordButton.title);
-        setStatus('Aufnahme läuft');
-        syncControls();
-        recordingTimer = setTimeout(() => stopRecording('Maximale Aufnahmedauer erreicht', 'maximum'), MAX_RECORDING_MS);
-    } catch (error) {
-        stopStream();
-        finishRecordingUi();
-        setStatus('Mikrofon nicht verfügbar');
-        await reportClientError('microphone_error', error);
-        const messages = {
-            NotAllowedError: 'Der Mikrofonzugriff wurde abgelehnt. Bitte in den Browser-Einstellungen erlauben.',
-            NotFoundError: 'Es wurde kein Mikrofon gefunden.',
-            NotReadableError: 'Das Mikrofon wird bereits verwendet oder kann nicht gelesen werden.',
-        };
-        showMessage('Mikrofon nicht verfügbar', messages[error.name] || error.message);
-    }
-}
-
-function stopRecording(statusMessage = 'Aufnahme beendet', reason = 'manual') {
-    if (recorder?.state !== 'recording') return;
-    setStatus(reason === 'silence' ? 'Sprechpause erkannt – Aufnahme beendet' : statusMessage);
-    recorder.stop();
-    void playCue(recordingEndSound);
+function startRecording() {
+    if (busy || recording.isActive) return;
+    const insertion = { selectionStart: draft.selectionStart, selectionEnd: draft.selectionEnd };
+    player.pause();
+    draft.inputMode = 'none';
+    draft.blur();
+    setStatus('');
+    void recording.start(insertion);
 }
 
 async function formatDraft() {
@@ -535,7 +388,7 @@ async function shareDraft() {
     }
 }
 
-recordButton.addEventListener('click', () => recorder?.state === 'recording' ? stopRecording() : startRecording());
+recordButton.addEventListener('click', startRecording);
 formatButton.addEventListener('click', formatDraft);
 speakButton.addEventListener('click', speakDraft);
 player.addEventListener('play', syncControls);
@@ -553,7 +406,7 @@ clearButton.addEventListener('click', () => {
 infoButton.addEventListener('click', () => {
     showMessage('DictoPhone AI', `Diktier-App mit KI-Aufbereitung
 
-Aufnehmen transkribiert Sprache über die OpenAI API und stoppt nach erkannter Sprache automatisch bei etwa zwei Sekunden Sprechpause. Korrigieren setzt auch gesprochene Anweisungen zu Sprache, Stil, Duzen/Siezen, Einfügen oder Anhängen um. Vorlesen erzeugt eine Sprachausgabe des Entwurfs.
+Aufnehmen öffnet einen Dialog mit Sprachschwelle, Audiovorlauf und leuchtender Pegelanzeige. „OK“ beendet die Aufnahme und transkribiert über die OpenAI API. „Abbruch“ oder Escape verwirft sie ohne Transkription. Sprechpausen sind möglich; nach 60 Sekunden wartet die Aufnahme auf deine Bestätigung. Korrigieren setzt auch gesprochene Anweisungen zu Sprache, Stil, Duzen/Siezen, Einfügen oder Anhängen um. Vorlesen erzeugt eine Sprachausgabe des Entwurfs.
 
 Datenschutz: Audio und Nachrichtentext werden zur Verarbeitung an OpenAI übertragen. Das lokale Diagnose-Log speichert keine Audio-, Diktat- oder Nachrichteninhalte und keine API-Schlüssel.
 
@@ -601,7 +454,9 @@ window.addEventListener('beforeunload', event => {
         event.returnValue = true;
         return;
     }
-    stopStream();
+});
+window.addEventListener('pagehide', () => {
+    recording.cancel();
     if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
 });
 

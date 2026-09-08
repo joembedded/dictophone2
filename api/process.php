@@ -182,7 +182,8 @@ Klassifikation:
 - intent_summary enthält bei input_type=format_instruction eine kurze, konkrete deutsche Zusammenfassung der erkannten Absicht ohne Präfix „Formatierung:“, zum Beispiel „Mail auf Deutsch und Englisch formulieren“. Bei input_type=dictation ist intent_summary ein leerer String.
 
 Wissensbasis für Korrekturen:
-- Oft verwendete Namen: Wickenhäuser, Laurali (nicht Laura Lee), Constantin, Torsten, Nico, Marcus
+- Oft verwendete Namen: Wickenhäuser, Laurali (nicht Laura Lee), Constantin, Consti, Torsten, Nico, Marcus
+- Oft verwendete Begriffe sind: GitHub, TerraTransfer, GeoPrecision, JoEmbedded
 
 Operationsregeln:
 - mode=format: Überarbeite current_draft vollständig; operation muss replace_all sein.

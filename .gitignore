@@ -5,3 +5,6 @@
 /secret/*.inc.php
 !/secret/_dummy_keys.inc.php
 /.env
+
+# Lokale Browserprüfungen und Screenshots.
+/output/playwright/
